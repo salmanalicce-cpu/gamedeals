@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react'
+import React, { useMemo, useState } from 'react'
 
 const SHEET_ID = '1lXBrmYgflnxQZN2L9obEqNAlqE3tN8YLplWyKmRcs7k'
 const BEST_DEALS_SHEET_ID = '1nLf3RYEj3gC7B85jWStNXdb-I6RlsNG06Ju6eY_XxBs'
@@ -10,6 +10,8 @@ function goToInstagram(event) {
   if (event) event.preventDefault()
   window.location.href = INSTAGRAM_URL
 }
+
+
 
 const HERO_SIDE_CARDS = [
   {
@@ -61,8 +63,8 @@ async function fetchSheetData(sheetName, sheetId = SHEET_ID) {
   return data.map(normalizeGame)
 }
 
-export default function App() {
-  const pcSectionRef = useRef(null)
+export default function GameStoreHomepage() {
+  const pcSectionRef = React.useRef(null)
   const currentYear = new Date().getFullYear()
 
   const [isBuyPopupOpen, setIsBuyPopupOpen] = useState(false)
@@ -81,7 +83,7 @@ export default function App() {
   const [games, setGames] = useState([])
   const [bestDeals, setBestDeals] = useState([])
 
-  useEffect(() => {
+  React.useEffect(() => {
     let isMounted = true
 
     const loadData = async () => {
@@ -214,48 +216,44 @@ export default function App() {
           </div>
 
           <nav className="hidden items-center gap-6 lg:flex">
-            <button onClick={scrollToPcSection} className="text-sm text-white/80 transition hover:text-white">
-              PC
-            </button>
-            <button
-              onClick={() => {
-                setSelectedPlatform('PlayStation')
-                setIsConsolePopupOpen(true)
-              }}
-              className="text-sm text-white/80 transition hover:text-white"
-            >
-              PlayStation
-            </button>
-            <button
-              onClick={() => {
-                setSelectedPlatform('Xbox')
-                setIsConsolePopupOpen(true)
-              }}
-              className="text-sm text-white/80 transition hover:text-white"
-            >
-              Xbox
-            </button>
-            <button
-              onClick={() => {
-                setSelectedPlatform('Nintendo')
-                setIsConsolePopupOpen(true)
-              }}
-              className="text-sm text-white/80 transition hover:text-white"
-            >
-              Nintendo
-            </button>
+            <button onClick={scrollToPcSection} className="text-sm text-white/80 transition hover:text-white">PC</button>
+            <button onClick={() => { setSelectedPlatform('PlayStation'); setIsConsolePopupOpen(true) }} className="text-sm text-white/80 transition hover:text-white">PlayStation</button>
+            <button onClick={() => { setSelectedPlatform('Xbox'); setIsConsolePopupOpen(true) }} className="text-sm text-white/80 transition hover:text-white">Xbox</button>
+            <button onClick={() => { setSelectedPlatform('Nintendo'); setIsConsolePopupOpen(true) }} className="text-sm text-white/80 transition hover:text-white">Nintendo</button>
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={() => setIsSignInOpen(true)}
-              className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-white/80 transition hover:bg-white/5 hover:text-white"
-            >
-              Sign in
-            </button>
-            <button className="rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-black transition hover:scale-[1.02]">
-              Cart (0)
-            </button>
+            <button onClick={() => setIsSignInOpen(true)} className="hidden rounded-2xl border border-white/10 px-4 py-2 text-sm text-white/80 transition hover:bg-white/5 hover:text-white sm:block">Sign in</button>
+            <button className="rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-black transition hover:scale-[1.02]">Cart (0)</button>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-7xl px-4 pb-4 md:hidden sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <svg viewBox="0 0 24 24" className="h-5 w-5 text-white/50" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+            <input
+              value={searchQuery}
+              onChange={(event) => {
+                const value = event.target.value
+                setSearchQuery(value)
+                setIsSearchOpen(value.trim().length > 0)
+              }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search games..."
+              className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40"
+            />
+            <button onClick={handleSearch} className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-black">Search</button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button onClick={scrollToPcSection} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/80">PC</button>
+            <button onClick={() => { setSelectedPlatform('PlayStation'); setIsConsolePopupOpen(true) }} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/80">PlayStation</button>
+            <button onClick={() => { setSelectedPlatform('Xbox'); setIsConsolePopupOpen(true) }} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/80">Xbox</button>
+            <button onClick={() => { setSelectedPlatform('Nintendo'); setIsConsolePopupOpen(true) }} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/80">Nintendo</button>
+            <button onClick={() => setIsSignInOpen(true)} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/80 sm:hidden">Sign in</button>
           </div>
         </div>
       </header>
@@ -323,11 +321,11 @@ export default function App() {
                         <a href={INSTAGRAM_URL} onClick={goToInstagram} className="inline-block rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-black">Request</a>
                       </div>
                     ) : (
-                      <div className="mt-4 flex items-center justify-between">
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <span className="text-xl font-black text-white">{game.price}</span>
                         <button
                           onClick={() => setIsBuyPopupOpen(true)}
-                          className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03]"
+                          className="w-full rounded-xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03] sm:w-auto"
                         >
                           Buy
                         </button>
@@ -374,7 +372,7 @@ export default function App() {
               </button>
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
               {section.items.map((game, index) => (
                 <article
                   key={`${section.title}-${game.title}-${index}`}
@@ -394,14 +392,14 @@ export default function App() {
                       <span>Steam Account</span>
                     </div>
                     <h3 className="text-lg font-bold leading-snug">{game.title}</h3>
-                    <div className="mt-4 flex items-end justify-between gap-3">
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                       <div>
                         <div className="text-2xl font-black">{game.price}</div>
                         <div className="text-sm text-white/35 line-through">{game.oldPrice}</div>
                       </div>
                       <button
                         onClick={() => setIsBuyPopupOpen(true)}
-                        className="rounded-2xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03]"
+                            className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03] sm:w-auto"
                       >
                         Buy
                       </button>
@@ -452,7 +450,7 @@ export default function App() {
 
             <div className="max-h-[calc(90vh-96px)] overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
               {filteredGames.length > 0 ? (
-                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
                   {filteredGames.map((game, index) => (
                     <article
                       key={`${game.title}-search-${index}`}
@@ -472,14 +470,14 @@ export default function App() {
                           <span>Steam Account</span>
                         </div>
                         <h3 className="text-lg font-bold leading-snug">{game.title}</h3>
-                        <div className="mt-4 flex items-end justify-between gap-3">
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                           <div>
                             <div className="text-2xl font-black">{game.price}</div>
                             <div className="text-sm text-white/35 line-through">{game.oldPrice}</div>
                           </div>
                           <button
                             onClick={() => setIsBuyPopupOpen(true)}
-                            className="rounded-2xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03]"
+                            className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03] sm:w-auto"
                           >
                             Buy
                           </button>
@@ -534,7 +532,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
                 {pcGames.map((game, index) => (
                   <article
                     key={`${game.title}-${index}`}
@@ -554,14 +552,14 @@ export default function App() {
                         <span>Steam Account</span>
                       </div>
                       <h3 className="text-lg font-bold leading-snug">{game.title}</h3>
-                      <div className="mt-4 flex items-end justify-between gap-3">
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                           <div className="text-2xl font-black">{game.price}</div>
                           <div className="text-sm text-white/35 line-through">{game.oldPrice}</div>
                         </div>
                         <button
                           onClick={() => setIsBuyPopupOpen(true)}
-                          className="rounded-2xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03]"
+                            className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03] sm:w-auto"
                         >
                           Buy
                         </button>
