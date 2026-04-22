@@ -1,0 +1,775 @@
+import React, { useMemo, useState, useEffect, useRef } from 'react'
+
+const SHEET_ID = '1lXBrmYgflnxQZN2L9obEqNAlqE3tN8YLplWyKmRcs7k'
+const BEST_DEALS_SHEET_ID = '1nLf3RYEj3gC7B85jWStNXdb-I6RlsNG06Ju6eY_XxBs'
+const DEFAULT_DISCOUNT = '-90%'
+const DEFAULT_TAG = 'Best Deal'
+const INSTAGRAM_URL = 'https://www.instagram.com/gamedeals.pk?igsh=MTBuNjZmMnVseG1lbQ%3D%3D&utm_source=qr'
+
+function goToInstagram(event) {
+  if (event) event.preventDefault()
+  window.location.href = INSTAGRAM_URL
+}
+
+const HERO_SIDE_CARDS = [
+  {
+    image: 'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?auto=format&fit=crop&w=1200&q=80',
+    title: 'Request Any Game',
+    discount: DEFAULT_DISCOUNT,
+    tag: DEFAULT_TAG,
+    isRequest: true,
+  },
+  {
+    image: 'https://images.unsplash.com/photo-1598550476439-6847785fcea6?auto=format&fit=crop&w=1200&q=80',
+    title: 'Xbox Game Pass',
+    price: 'From Rs 1200',
+    discount: DEFAULT_DISCOUNT,
+    tag: DEFAULT_TAG,
+  },
+]
+
+function normalizeGame(item, index) {
+  const title = typeof item?.title === 'string' && item.title.trim() ? item.title.trim() : `Game ${index + 1}`
+  return {
+    title,
+    price: typeof item?.price === 'string' && item.price.trim() ? item.price.trim() : '$0.00',
+    oldPrice: typeof item?.oldPrice === 'string' && item.oldPrice.trim() ? item.oldPrice.trim() : '$0.00',
+    discount:
+      typeof item?.discount === 'string' && item.discount.trim() ? item.discount.trim() : DEFAULT_DISCOUNT,
+    image:
+      typeof item?.image === 'string' && item.image.trim()
+        ? item.image.trim()
+        : 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
+    tag: typeof item?.tag === 'string' && item.tag.trim() ? item.tag.trim() : DEFAULT_TAG,
+  }
+}
+
+async function fetchSheetData(sheetName, sheetId = SHEET_ID) {
+  const url = `https://opensheet.elk.sh/${sheetId}/${sheetName}`
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new Error(`Failed to load ${sheetName}: ${response.status}`)
+  }
+
+  const data = await response.json()
+
+  if (!Array.isArray(data)) {
+    throw new Error(`Invalid ${sheetName} response format`)
+  }
+
+  return data.map(normalizeGame)
+}
+
+export default function App() {
+  const pcSectionRef = useRef(null)
+  const currentYear = new Date().getFullYear()
+
+  const [isBuyPopupOpen, setIsBuyPopupOpen] = useState(false)
+  const [isPcGamesOpen, setIsPcGamesOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isInstagramPopupOpen, setIsInstagramPopupOpen] = useState(false)
+  const [isRulesPopupOpen, setIsRulesPopupOpen] = useState(false)
+  const [highlightPC, setHighlightPC] = useState(false)
+  const [isConsolePopupOpen, setIsConsolePopupOpen] = useState(false)
+  const [isFaqOpen, setIsFaqOpen] = useState(false)
+  const [isSignInOpen, setIsSignInOpen] = useState(false)
+  const [selectedPlatform, setSelectedPlatform] = useState('')
+  const [hoveredGame, setHoveredGame] = useState(null)
+
+  const [games, setGames] = useState([])
+  const [bestDeals, setBestDeals] = useState([])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadData = async () => {
+      try {
+        const sheetGames = await fetchSheetData('Sheet1')
+        if (isMounted) {
+          setGames(sheetGames)
+        }
+      } catch (error) {
+        console.error('Error loading games:', error)
+        if (isMounted) {
+          setGames([])
+        }
+      }
+
+      try {
+        const deals = await fetchSheetData('Sheet1', BEST_DEALS_SHEET_ID)
+        if (isMounted) {
+          setBestDeals(deals)
+        }
+      } catch (error) {
+        console.error('Error loading best deals:', error)
+        if (isMounted) {
+          setBestDeals([])
+        }
+      }
+    }
+
+    loadData()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const featuredGames = useMemo(() => games.slice(0, 4), [games])
+  const pcGames = useMemo(() => games, [games])
+
+  const sections = useMemo(
+    () => [
+      {
+        title: 'PC Games',
+        items: featuredGames,
+        action: () => setIsPcGamesOpen(true),
+      },
+      {
+        title: 'Best Deals',
+        items: bestDeals.length > 0 ? bestDeals : featuredGames,
+      },
+      {
+        title: 'Trending Now',
+        items: featuredGames,
+      },
+    ],
+    [bestDeals, featuredGames]
+  )
+
+  const selectedSection = useMemo(
+    () => sections.find((section) => section.title === 'PC Games'),
+    [sections]
+  )
+
+  const searchableGames = useMemo(() => {
+    const mergedGames = [...pcGames, ...bestDeals, ...featuredGames]
+    return mergedGames.filter(
+      (game, index, self) => index === self.findIndex((item) => item.title === game.title)
+    )
+  }, [pcGames, bestDeals, featuredGames])
+
+  const filteredGames = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return searchableGames
+    return searchableGames.filter((game) =>
+      [game.title, game.tag, 'Steam Account'].join(' ').toLowerCase().includes(query)
+    )
+  }, [searchQuery, searchableGames])
+
+  const handleSearch = () => {
+    setIsSearchOpen(true)
+  }
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      handleSearch()
+    }
+  }
+
+  const scrollToPcSection = () => {
+    pcSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
+    setHighlightPC(true)
+    window.setTimeout(() => setHighlightPC(false), 1500)
+  }
+
+  return (
+    <div className="min-h-screen bg-neutral-950 text-white">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-neutral-950/85 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-500 font-black text-black shadow-lg shadow-orange-500/30">
+              G
+            </div>
+            <div>
+              <p className="text-lg font-bold tracking-wide">GameDeals</p>
+              <p className="text-xs text-white/50">Digital game marketplace</p>
+            </div>
+          </div>
+
+          <div className="hidden flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 md:flex">
+            <svg viewBox="0 0 24 24" className="h-5 w-5 text-white/50" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+            <input
+              value={searchQuery}
+              onChange={(event) => {
+                const value = event.target.value
+                setSearchQuery(value)
+                setIsSearchOpen(value.trim().length > 0)
+              }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search games, gift cards, DLC..."
+              className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40"
+            />
+            <button
+              onClick={handleSearch}
+              className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-black transition hover:scale-[1.02]"
+            >
+              Search
+            </button>
+          </div>
+
+          <nav className="hidden items-center gap-6 lg:flex">
+            <button onClick={scrollToPcSection} className="text-sm text-white/80 transition hover:text-white">
+              PC
+            </button>
+            <button
+              onClick={() => {
+                setSelectedPlatform('PlayStation')
+                setIsConsolePopupOpen(true)
+              }}
+              className="text-sm text-white/80 transition hover:text-white"
+            >
+              PlayStation
+            </button>
+            <button
+              onClick={() => {
+                setSelectedPlatform('Xbox')
+                setIsConsolePopupOpen(true)
+              }}
+              className="text-sm text-white/80 transition hover:text-white"
+            >
+              Xbox
+            </button>
+            <button
+              onClick={() => {
+                setSelectedPlatform('Nintendo')
+                setIsConsolePopupOpen(true)
+              }}
+              className="text-sm text-white/80 transition hover:text-white"
+            >
+              Nintendo
+            </button>
+          </nav>
+
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => setIsSignInOpen(true)}
+              className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-white/80 transition hover:bg-white/5 hover:text-white"
+            >
+              Sign in
+            </button>
+            <button className="rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-black transition hover:scale-[1.02]">
+              Cart (0)
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.22),transparent_30%),radial-gradient(circle_at_left,rgba(255,255,255,0.08),transparent_25%)]" />
+          <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[1.2fr_0.8fr] lg:px-8 lg:py-20">
+            <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-900 shadow-2xl shadow-black/30">
+              <img
+                src="https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1600&q=80"
+                alt="Featured game"
+                className="h-[420px] w-full object-cover opacity-55"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent" />
+              <div className="absolute inset-0 flex flex-col justify-end p-8 sm:p-10">
+                <span className="mb-4 inline-flex w-fit rounded-full border border-orange-400/30 bg-orange-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">
+                  Limited Time Offer
+                </span>
+                <h1 className="max-w-2xl text-4xl font-black leading-tight sm:text-5xl lg:text-6xl">
+                  Grab top PC games at prices that convert fast.
+                </h1>
+                <p className="mt-4 max-w-xl text-sm leading-6 text-white/70 sm:text-base">
+                  Buy top PC games at unbeatable prices. Instant delivery, trusted payments, and fast support you can rely on.
+                </p>
+                <div className="mt-8 flex flex-wrap items-center gap-4">
+                  <button
+                    onClick={scrollToPcSection}
+                    className="rounded-2xl bg-orange-500 px-6 py-3 text-sm font-bold text-black transition hover:scale-[1.02]"
+                  >
+                    Shop Now
+                  </button>
+                  <button
+                    onClick={() => setIsRulesPopupOpen(true)}
+                    className="rounded-2xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                  >
+                    Rules
+                  </button>
+                  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                    Up to 90% off
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+              {HERO_SIDE_CARDS.map((game, index) => (
+                <div
+                  key={index}
+                  onMouseEnter={() => setHoveredGame({ image: game.image, title: game.title })}
+                  onMouseLeave={() => setHoveredGame(null)}
+                  className="group relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/5"
+                >
+                  <img src={game.image} alt={game.title} className="h-48 w-full object-cover opacity-60 transition duration-300 group-hover:scale-105" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 z-10 p-5">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="absolute right-4 top-4 rounded-full bg-orange-500 px-2.5 py-1 text-xs font-bold text-black">{game.discount}</span>
+                      <span className="text-xs text-white/60">{game.tag}</span>
+                    </div>
+                    <h3 className="text-lg font-bold">{game.title}</h3>
+                    {game.isRequest ? (
+                      <div className="mt-4">
+                        <p className="mb-3 text-sm text-white/75">Can’t find your game? Send us a request.</p>
+                        <a href={INSTAGRAM_URL} onClick={goToInstagram} className="inline-block rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-black">Request</a>
+                      </div>
+                    ) : (
+                      <div className="mt-4 flex items-center justify-between">
+                        <span className="text-xl font-black text-white">{game.price}</span>
+                        <button
+                          onClick={() => setIsBuyPopupOpen(true)}
+                          className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03]"
+                        >
+                          Buy
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <div className="grid gap-4 rounded-[2rem] border border-white/10 bg-white/5 p-5 sm:grid-cols-3 sm:p-6">
+            {[
+              ['Game Account', 'Receive a product instantly after purchase'],
+              ['Payment Methods', 'Easypaisa, JazzCash, Bank Transfer, Binance'],
+              ['Verified Deals', 'Clean pricing with visible savings and top offers'],
+            ].map(([title, text]) => (
+              <div key={title} className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
+                <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-white/75">{title}</h3>
+                <p className="mt-2 text-sm leading-6 text-white/60">{text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {sections.map((section) => (
+          <section
+            ref={section.title === 'PC Games' ? pcSectionRef : null}
+            key={section.title}
+            className={`mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 transition-all duration-500 ${highlightPC && section.title === 'PC Games' ? 'ring-2 ring-orange-400 shadow-[0_0_40px_rgba(249,115,22,0.4)] rounded-2xl' : ''}`}
+          >
+            <div className="mb-5 flex items-end justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-black sm:text-3xl">{section.title}</h2>
+                <p className="mt-1 text-sm text-white/55">Fast-scanning cards with clear prices and bold discounts.</p>
+              </div>
+              <button
+                onClick={section.action || (() => {})}
+                className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-medium text-white/75 transition hover:bg-white/5 hover:text-white"
+              >
+                View all
+              </button>
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              {section.items.map((game, index) => (
+                <article
+                  key={`${section.title}-${game.title}-${index}`}
+                  onMouseEnter={() => setHoveredGame({ image: game.image, title: game.title })}
+                  onMouseLeave={() => setHoveredGame(null)}
+                  className="group overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/5 transition hover:-translate-y-1 hover:border-orange-400/30 hover:bg-white/[0.07]"
+                >
+                  <div className="relative">
+                    <img src={game.image} alt={game.title} className="h-56 w-full object-cover transition duration-300 group-hover:scale-105" />
+                    <div className="absolute right-4 top-4 rounded-full bg-orange-500 px-3 py-1 text-xs font-black text-black shadow-lg shadow-orange-500/25">
+                      {game.discount}
+                    </div>
+                  </div>
+                  <div className="p-5">
+                    <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/45">
+                      <span>{game.tag}</span>
+                      <span>Steam Account</span>
+                    </div>
+                    <h3 className="text-lg font-bold leading-snug">{game.title}</h3>
+                    <div className="mt-4 flex items-end justify-between gap-3">
+                      <div>
+                        <div className="text-2xl font-black">{game.price}</div>
+                        <div className="text-sm text-white/35 line-through">{game.oldPrice}</div>
+                      </div>
+                      <button
+                        onClick={() => setIsBuyPopupOpen(true)}
+                        className="rounded-2xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03]"
+                      >
+                        Buy
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ))}
+      </main>
+
+      {hoveredGame && (
+        <div className="pointer-events-none fixed right-6 top-24 z-[110] hidden w-[320px] xl:block">
+          <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-neutral-900 shadow-2xl shadow-black/50">
+            <img src={hoveredGame.image} alt={hoveredGame.title} className="h-[420px] w-full object-cover" />
+            <div className="border-t border-white/10 bg-black/40 px-4 py-3">
+              <p className="text-sm font-semibold text-white">{hoveredGame.title}</p>
+              <p className="mt-1 text-xs text-white/55">Full image preview</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isSearchOpen && searchQuery.trim().length > 0 && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
+          <div className="relative max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/60">
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">Search Results</p>
+                <h2 className="mt-1 text-2xl font-black sm:text-3xl">
+                  {searchQuery.trim() ? `Results for “${searchQuery}”` : 'All Games'}
+                </h2>
+                <p className="mt-1 text-sm text-white/55">
+                  {filteredGames.length} matching game{filteredGames.length === 1 ? '' : 's'} found.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setIsSearchOpen(false)
+                  setSearchQuery('')
+                }}
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-96px)] overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+              {filteredGames.length > 0 ? (
+                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                  {filteredGames.map((game, index) => (
+                    <article
+                      key={`${game.title}-search-${index}`}
+                      onMouseEnter={() => setHoveredGame({ image: game.image, title: game.title })}
+                      onMouseLeave={() => setHoveredGame(null)}
+                      className="group overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/5 transition hover:-translate-y-1 hover:border-orange-400/30 hover:bg-white/[0.07]"
+                    >
+                      <div className="relative">
+                        <img src={game.image} alt={game.title} className="h-56 w-full object-cover transition duration-300 group-hover:scale-105" />
+                        <div className="absolute right-4 top-4 rounded-full bg-orange-500 px-3 py-1 text-xs font-black text-black shadow-lg shadow-orange-500/25">
+                          {game.discount}
+                        </div>
+                      </div>
+                      <div className="p-5">
+                        <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/45">
+                          <span>{game.tag}</span>
+                          <span>Steam Account</span>
+                        </div>
+                        <h3 className="text-lg font-bold leading-snug">{game.title}</h3>
+                        <div className="mt-4 flex items-end justify-between gap-3">
+                          <div>
+                            <div className="text-2xl font-black">{game.price}</div>
+                            <div className="text-sm text-white/35 line-through">{game.oldPrice}</div>
+                          </div>
+                          <button
+                            onClick={() => setIsBuyPopupOpen(true)}
+                            className="rounded-2xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03]"
+                          >
+                            Buy
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-[1.75rem] border border-dashed border-white/10 bg-white/5 px-6 py-16 text-center">
+                  <h3 className="text-2xl font-black">No games found</h3>
+                  <p className="mt-3 text-sm text-white/60">
+                    Try another title or a broader keyword like action, racing, or deal.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isPcGamesOpen && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-sm">
+          <div className="relative max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/60">
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">Browse Collection</p>
+                <h2 className="mt-1 text-2xl font-black sm:text-3xl">{selectedSection?.title || 'PC Games'}</h2>
+                <p className="mt-1 text-sm text-white/55">Explore all available titles in a focused popup window.</p>
+              </div>
+              <button
+                onClick={() => setIsPcGamesOpen(false)}
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-96px)] overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+              <div className="mb-5 grid gap-4 rounded-[1.75rem] border border-white/10 bg-white/5 p-4 sm:grid-cols-3">
+                <div className="rounded-[1.25rem] border border-white/10 bg-black/20 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/45">Total Titles</p>
+                  <p className="mt-2 text-3xl font-black">{pcGames.length}</p>
+                </div>
+                <div className="rounded-[1.25rem] border border-white/10 bg-black/20 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/45">Best Discount</p>
+                  <p className="mt-2 text-3xl font-black text-orange-400">-90%</p>
+                </div>
+                <div className="rounded-[1.25rem] border border-white/10 bg-black/20 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/45">Delivery</p>
+                  <p className="mt-2 text-3xl font-black text-emerald-400">Instant</p>
+                </div>
+              </div>
+
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                {pcGames.map((game, index) => (
+                  <article
+                    key={`${game.title}-${index}`}
+                    onMouseEnter={() => setHoveredGame({ image: game.image, title: game.title })}
+                    onMouseLeave={() => setHoveredGame(null)}
+                    className="group overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/5 transition hover:-translate-y-1 hover:border-orange-400/30 hover:bg-white/[0.07]"
+                  >
+                    <div className="relative">
+                      <img src={game.image} alt={game.title} className="h-56 w-full object-cover transition duration-300 group-hover:scale-105" />
+                      <div className="absolute right-4 top-4 rounded-full bg-orange-500 px-3 py-1 text-xs font-black text-black shadow-lg shadow-orange-500/25">
+                        {game.discount}
+                      </div>
+                    </div>
+                    <div className="p-5">
+                      <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/45">
+                        <span>{game.tag}</span>
+                        <span>Steam Account</span>
+                      </div>
+                      <h3 className="text-lg font-bold leading-snug">{game.title}</h3>
+                      <div className="mt-4 flex items-end justify-between gap-3">
+                        <div>
+                          <div className="text-2xl font-black">{game.price}</div>
+                          <div className="text-sm text-white/35 line-through">{game.oldPrice}</div>
+                        </div>
+                        <button
+                          onClick={() => setIsBuyPopupOpen(true)}
+                          className="rounded-2xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03]"
+                        >
+                          Buy
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isConsolePopupOpen && (
+        <div className="fixed inset-0 z-[103] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-900 p-6 text-center shadow-2xl">
+            <h2 className="mb-3 text-2xl font-bold">{selectedPlatform} Coming Soon</h2>
+            <p className="text-sm leading-6 text-white/70">
+              We’re currently working on {selectedPlatform} products.
+              <br />
+              Right now, we only deal in PC Games.
+            </p>
+            <button
+              onClick={() => setIsConsolePopupOpen(false)}
+              className="mt-6 rounded-xl border border-white/10 px-5 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isFaqOpen && (
+        <div className="fixed inset-0 z-[104] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-neutral-900 p-6 shadow-2xl">
+            <h2 className="mb-4 text-2xl font-bold">Frequently Asked Questions</h2>
+            <div className="space-y-4 text-sm leading-7 text-white/75">
+              <div>
+                <p className="font-semibold text-white">What will I receive?</p>
+                <p>You’ll get a Steam account (email + password) with the game ready to download.</p>
+              </div>
+              <div>
+                <p className="font-semibold text-white">Can I change the account details?</p>
+                <p>No, the email and password can’t be changed on shared accounts.</p>
+              </div>
+              <div>
+                <p className="font-semibold text-white">How fast is delivery?</p>
+                <p>Delivery is usually instant. In rare cases, it can take up to 1 hour—we’re fast.</p>
+              </div>
+              <div>
+                <p className="font-semibold text-white">Can I buy a changeable account?</p>
+                <p>Yes—private accounts with changeable credentials are available at a higher price.</p>
+              </div>
+              <div>
+                <p className="font-semibold text-white">Do you offer a warranty?</p>
+                <p>Yes, we cover our products and provide support if any issues come up.</p>
+              </div>
+              <div>
+                <p className="font-semibold text-white">Can I update the game?</p>
+                <p>Of course—you can update to the latest version anytime.</p>
+              </div>
+              <div>
+                <p className="font-semibold text-white">Important setup note</p>
+                <p>After purchase, download and launch the game once. When you reach the main menu, close the game and switch Steam to Offline Mode. Then enjoy your game.</p>
+              </div>
+            </div>
+            <div className="mt-5 flex items-center gap-3">
+              <a href={INSTAGRAM_URL} onClick={goToInstagram} className="inline-block rounded-xl bg-orange-500 px-5 py-2 text-sm font-semibold text-black">Chat</a>
+            </div>
+            <button
+              onClick={() => setIsFaqOpen(false)}
+              className="mt-6 rounded-xl border border-white/10 px-5 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isRulesPopupOpen && (
+        <div className="fixed inset-0 z-[102] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-neutral-900 p-6 shadow-2xl">
+            <h2 className="mb-4 text-2xl font-bold">What You’ll Receive</h2>
+            <div className="space-y-3 text-sm leading-7 text-white/75">
+              <p className="font-semibold text-white">After purchase, you will receive:</p>
+              <p>➤ Steam licensed account with the games.</p>
+              <p>➤ Update the game to the latest version at any time.</p>
+              <p>➤ Email and password cannot be changed.</p>
+              <p>➤ Guaranteed assistance and solutions for any issues.</p>
+              <p>➤ If you have any questions about the product, you can message us in chats.</p>
+            </div>
+
+            <div className="mt-5 flex items-center gap-3">
+              <a href={INSTAGRAM_URL} onClick={goToInstagram} className="inline-block rounded-xl bg-orange-500 px-5 py-2 text-sm font-semibold text-black">Chat</a>
+            </div>
+
+            <button
+              onClick={() => setIsRulesPopupOpen(false)}
+              className="mt-6 rounded-xl border border-white/10 px-5 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isInstagramPopupOpen && (
+        <div className="fixed inset-0 z-[101] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-900 p-6 text-center shadow-2xl">
+            <h2 className="mb-3 text-2xl font-bold">Instagram Support</h2>
+            <p className="text-sm leading-6 text-white/70">
+              Please contact us on Instagram for help, order support, or any questions.
+            </p>
+
+            <a href={INSTAGRAM_URL} onClick={goToInstagram} className="mt-5 inline-block rounded-xl bg-orange-500 px-5 py-2 text-sm font-semibold text-black">Open Instagram</a>
+
+            <button
+              onClick={() => setIsInstagramPopupOpen(false)}
+              className="mt-4 block w-full rounded-xl border border-white/10 py-2 text-sm text-white/80 hover:bg-white/10"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isSignInOpen && (
+        <div className="fixed inset-0 z-[105] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-900 p-6 text-center shadow-2xl">
+            <h2 className="mb-3 text-2xl font-bold">🚧 Feature Coming Soon</h2>
+            <p className="text-sm leading-6 text-white/70">
+              We’re currently working on the sign-in feature.
+              <br />
+              It will be available very soon.
+            </p>
+
+            <button
+              onClick={() => setIsSignInOpen(false)}
+              className="mt-6 block w-full rounded-xl border border-white/10 py-2 text-sm text-white/80 hover:bg-white/10"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isBuyPopupOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-900 p-6 text-center shadow-2xl">
+            <h2 className="mb-3 text-2xl font-bold">🚧 Payment Coming Soon</h2>
+            <p className="text-sm leading-6 text-white/70">
+              We are currently working on our payment system.
+              <br />
+              Please contact us on Instagram to complete your purchase.
+            </p>
+
+            <a href={INSTAGRAM_URL} onClick={goToInstagram} className="mt-5 inline-block rounded-xl bg-orange-500 px-5 py-2 text-sm font-semibold text-black">Contact on Instagram</a>
+
+            <button
+              onClick={() => setIsBuyPopupOpen(false)}
+              className="mt-4 block w-full rounded-xl border border-white/10 py-2 text-sm text-white/80 hover:bg-white/10"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      <footer className="border-t border-white/10 bg-black/30">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-2 lg:grid-cols-4 lg:px-8">
+          <div>
+            <p className="text-lg font-black">GameDeals</p>
+            <p className="mt-3 max-w-xs text-sm leading-6 text-white/55">
+              © {currentYear} GameDeals. All rights reserved.
+            </p>
+          </div>
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-white/75">Social Media</p>
+            <div className="mt-3 space-y-2 text-sm text-white/55">
+              <a href={INSTAGRAM_URL} onClick={goToInstagram} className="block text-left transition hover:text-white">
+                Instagram
+              </a>
+              <p>Discord</p>
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-white/75">Support</p>
+            <div className="mt-3 space-y-2 text-sm text-white/55">
+              <a href={INSTAGRAM_URL} onClick={goToInstagram} className="block text-left transition hover:text-white">
+                Contact
+              </a>
+              <button
+                onClick={() => setIsFaqOpen(true)}
+                className="block text-left transition hover:text-white"
+              >
+                FAQs
+              </button>
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-white/75">Trust</p>
+            <div className="mt-3 space-y-2 text-sm text-white/55">
+              <p>Instant Delivery</p>
+              <p>24/7 Support</p>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  )
+}
