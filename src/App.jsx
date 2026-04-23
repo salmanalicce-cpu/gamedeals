@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 const SHEET_ID = '1lXBrmYgflnxQZN2L9obEqNAlqE3tN8YLplWyKmRcs7k'
 const BEST_DEALS_SHEET_ID = '1nLf3RYEj3gC7B85jWStNXdb-I6RlsNG06Ju6eY_XxBs'
@@ -11,22 +11,20 @@ function goToInstagram(event) {
   window.location.href = INSTAGRAM_URL
 }
 
-
-
 const HERO_SIDE_CARDS = [
   {
-    image: 'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?auto=format&fit=crop&w=1200&q=80',
+    image: 'https://preview.redd.it/what-games-from-that-picture-are-a-must-play-for-you-v0-h2oqoh04daoe1.png?width=640&crop=smart&auto=webp&s=0c72b467b0baf5daf7f0f1811a99b923601108b5',
     title: 'Request Any Game',
-    discount: DEFAULT_DISCOUNT,
-    tag: DEFAULT_TAG,
+    discount: '',
+    tag: '',
     isRequest: true,
   },
   {
-    image: 'https://images.unsplash.com/photo-1598550476439-6847785fcea6?auto=format&fit=crop&w=1200&q=80',
+    image: 'https://cms-assets.xboxservices.com/assets/00/bc/00bc6b3e-67c8-4cd4-bda2-d03740ccd6c6.jpg?n=Ultimate+GameLibrary.jpg&q=90&o=f&w=562&h=316',
     title: 'Xbox Game Pass',
     price: 'From Rs 1200',
-    discount: DEFAULT_DISCOUNT,
-    tag: DEFAULT_TAG,
+    discount: '',
+    tag: '',
   },
 ]
 
@@ -64,7 +62,7 @@ async function fetchSheetData(sheetName, sheetId = SHEET_ID) {
 }
 
 export default function GameStoreHomepage() {
-  const pcSectionRef = React.useRef(null)
+  const pcSectionRef = useRef(null)
   const currentYear = new Date().getFullYear()
 
   const [isBuyPopupOpen, setIsBuyPopupOpen] = useState(false)
@@ -79,36 +77,38 @@ export default function GameStoreHomepage() {
   const [isSignInOpen, setIsSignInOpen] = useState(false)
   const [selectedPlatform, setSelectedPlatform] = useState('')
   const [hoveredGame, setHoveredGame] = useState(null)
+  const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 })
+  const [canHover, setCanHover] = useState(false)
 
   const [games, setGames] = useState([])
   const [bestDeals, setBestDeals] = useState([])
 
-  React.useEffect(() => {
+  useEffect(() => {
+    // detect hover capability (desktop vs mobile)
+    try {
+      const m = window.matchMedia && window.matchMedia('(hover: hover)')
+      setCanHover(!!(m && m.matches))
+    } catch (e) {
+      setCanHover(false)
+    }
+
     let isMounted = true
 
     const loadData = async () => {
       try {
         const sheetGames = await fetchSheetData('Sheet1')
-        if (isMounted) {
-          setGames(sheetGames)
-        }
+        if (isMounted) setGames(sheetGames)
       } catch (error) {
         console.error('Error loading games:', error)
-        if (isMounted) {
-          setGames([])
-        }
+        if (isMounted) setGames([])
       }
 
       try {
         const deals = await fetchSheetData('Sheet1', BEST_DEALS_SHEET_ID)
-        if (isMounted) {
-          setBestDeals(deals)
-        }
+        if (isMounted) setBestDeals(deals)
       } catch (error) {
         console.error('Error loading best deals:', error)
-        if (isMounted) {
-          setBestDeals([])
-        }
+        if (isMounted) setBestDeals([])
       }
     }
 
@@ -133,10 +133,7 @@ export default function GameStoreHomepage() {
         title: 'Best Deals',
         items: bestDeals.length > 0 ? bestDeals : featuredGames,
       },
-      {
-        title: 'Trending Now',
-        items: featuredGames,
-      },
+      
     ],
     [bestDeals, featuredGames]
   )
@@ -172,7 +169,19 @@ export default function GameStoreHomepage() {
   }
 
   const scrollToPcSection = () => {
-    pcSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const headerOffset = 100
+    const element = pcSectionRef.current
+
+    if (element) {
+      const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
+      const offsetPosition = elementPosition - headerOffset
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth',
+      })
+    }
+
     setHighlightPC(true)
     window.setTimeout(() => setHighlightPC(false), 1500)
   }
@@ -216,15 +225,48 @@ export default function GameStoreHomepage() {
           </div>
 
           <nav className="hidden items-center gap-6 lg:flex">
-            <button onClick={scrollToPcSection} className="text-sm text-white/80 transition hover:text-white">PC</button>
-            <button onClick={() => { setSelectedPlatform('PlayStation'); setIsConsolePopupOpen(true) }} className="text-sm text-white/80 transition hover:text-white">PlayStation</button>
-            <button onClick={() => { setSelectedPlatform('Xbox'); setIsConsolePopupOpen(true) }} className="text-sm text-white/80 transition hover:text-white">Xbox</button>
-            <button onClick={() => { setSelectedPlatform('Nintendo'); setIsConsolePopupOpen(true) }} className="text-sm text-white/80 transition hover:text-white">Nintendo</button>
+            <button onClick={scrollToPcSection} className="text-sm text-white/80 transition hover:text-white">
+              PC
+            </button>
+            <button
+              onClick={() => {
+                setSelectedPlatform('PlayStation')
+                setIsConsolePopupOpen(true)
+              }}
+              className="text-sm text-white/80 transition hover:text-white"
+            >
+              PlayStation
+            </button>
+            <button
+              onClick={() => {
+                setSelectedPlatform('Xbox')
+                setIsConsolePopupOpen(true)
+              }}
+              className="text-sm text-white/80 transition hover:text-white"
+            >
+              Xbox
+            </button>
+            <button
+              onClick={() => {
+                setSelectedPlatform('Nintendo')
+                setIsConsolePopupOpen(true)
+              }}
+              className="text-sm text-white/80 transition hover:text-white"
+            >
+              Nintendo
+            </button>
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
-            <button onClick={() => setIsSignInOpen(true)} className="hidden rounded-2xl border border-white/10 px-4 py-2 text-sm text-white/80 transition hover:bg-white/5 hover:text-white sm:block">Sign in</button>
-            <button className="rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-black transition hover:scale-[1.02]">Cart (0)</button>
+            <button
+              onClick={() => setIsSignInOpen(true)}
+              className="hidden rounded-2xl border border-white/10 px-4 py-2 text-sm text-white/80 transition hover:bg-white/5 hover:text-white sm:block"
+            >
+              Sign in
+            </button>
+            <button className="rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-black transition hover:scale-[1.02]">
+              Cart (0)
+            </button>
           </div>
         </div>
 
@@ -245,15 +287,9 @@ export default function GameStoreHomepage() {
               placeholder="Search games..."
               className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40"
             />
-            <button onClick={handleSearch} className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-black">Search</button>
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button onClick={scrollToPcSection} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/80">PC</button>
-            <button onClick={() => { setSelectedPlatform('PlayStation'); setIsConsolePopupOpen(true) }} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/80">PlayStation</button>
-            <button onClick={() => { setSelectedPlatform('Xbox'); setIsConsolePopupOpen(true) }} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/80">Xbox</button>
-            <button onClick={() => { setSelectedPlatform('Nintendo'); setIsConsolePopupOpen(true) }} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/80">Nintendo</button>
-            <button onClick={() => setIsSignInOpen(true)} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/80 sm:hidden">Sign in</button>
+            <button onClick={handleSearch} className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-black">
+              Search
+            </button>
           </div>
         </div>
       </header>
@@ -264,61 +300,62 @@ export default function GameStoreHomepage() {
           <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[1.2fr_0.8fr] lg:px-8 lg:py-20">
             <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-900 shadow-2xl shadow-black/30">
               <img
-                src="https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1600&q=80"
+                src="https://cdn.fastly.steamstatic.com/store/home/store_home_share.jpg"
                 alt="Featured game"
                 className="h-[420px] w-full object-cover opacity-55"
               />
               <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent" />
               <div className="absolute inset-0 flex flex-col justify-end p-8 sm:p-10">
-                <span className="mb-4 inline-flex w-fit rounded-full border border-orange-400/30 bg-orange-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">
-                  Limited Time Offer
-                </span>
-                <h1 className="max-w-2xl text-4xl font-black leading-tight sm:text-5xl lg:text-6xl">
-                  Grab top PC games at prices that convert fast.
+                
+                <h1 className="max-w-2xl text-3xl font-black leading-tight sm:text-5xl lg:text-6xl">
+                  All PC Games. Unbeatable Prices.
                 </h1>
-                <p className="mt-4 max-w-xl text-sm leading-6 text-white/70 sm:text-base">
-                  Buy top PC games at unbeatable prices. Instant delivery, trusted payments, and fast support you can rely on.
+                <p className="mt-3 max-w-xl text-sm leading-6 text-white/70 sm:mt-4 sm:text-base">
+                  Buy top PC games at unbeatable prices with fast support and easy ordering.
                 </p>
-                <div className="mt-8 flex flex-wrap items-center gap-4">
+                <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-wrap sm:flex-row sm:items-center sm:gap-4">
                   <button
                     onClick={scrollToPcSection}
-                    className="rounded-2xl bg-orange-500 px-6 py-3 text-sm font-bold text-black transition hover:scale-[1.02]"
+                    className="w-full rounded-2xl bg-orange-500 px-6 py-3 text-sm font-bold text-black transition hover:scale-[1.02] sm:w-auto"
                   >
                     Shop Now
                   </button>
                   <button
                     onClick={() => setIsRulesPopupOpen(true)}
-                    className="rounded-2xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                    className="w-full rounded-2xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                   >
                     Rules
                   </button>
-                  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                  <div className="hidden rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300 sm:block">
                     Up to 90% off
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="mt-2 hidden gap-4 sm:grid sm:grid-cols-2 lg:mt-0 lg:grid-cols-1">
               {HERO_SIDE_CARDS.map((game, index) => (
                 <div
                   key={index}
-                  onMouseEnter={() => setHoveredGame({ image: game.image, title: game.title })}
-                  onMouseLeave={() => setHoveredGame(null)}
+                  
                   className="group relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/5"
                 >
                   <img src={game.image} alt={game.title} className="h-48 w-full object-cover opacity-60 transition duration-300 group-hover:scale-105" />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
                   <div className="absolute inset-x-0 bottom-0 z-10 p-5">
                     <div className="mb-2 flex items-center justify-between">
-                      <span className="absolute right-4 top-4 rounded-full bg-orange-500 px-2.5 py-1 text-xs font-bold text-black">{game.discount}</span>
+                      <span className="absolute right-4 top-4 rounded-full bg-orange-500 px-2.5 py-1 text-xs font-bold text-black">
+                        {game.discount}
+                      </span>
                       <span className="text-xs text-white/60">{game.tag}</span>
                     </div>
                     <h3 className="text-lg font-bold">{game.title}</h3>
                     {game.isRequest ? (
                       <div className="mt-4">
                         <p className="mb-3 text-sm text-white/75">Can’t find your game? Send us a request.</p>
-                        <a href={INSTAGRAM_URL} onClick={goToInstagram} className="inline-block rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-black">Request</a>
+                        <a href={INSTAGRAM_URL} onClick={goToInstagram} className="inline-block rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-black">
+                          Request
+                        </a>
                       </div>
                     ) : (
                       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -339,11 +376,11 @@ export default function GameStoreHomepage() {
         </section>
 
         <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <div className="grid gap-4 rounded-[2rem] border border-white/10 bg-white/5 p-5 sm:grid-cols-3 sm:p-6">
+          <div className="hidden gap-4 rounded-[2rem] border border-white/10 bg-white/5 p-5 sm:grid sm:grid-cols-3 sm:p-6">
             {[
               ['Game Account', 'Receive a product instantly after purchase'],
               ['Payment Methods', 'Easypaisa, JazzCash, Bank Transfer, Binance'],
-              ['Verified Deals', 'Clean pricing with visible savings and top offers'],
+              ['Life Time Warranty', 'Reliable long-term support for all products'],
             ].map(([title, text]) => (
               <div key={title} className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
                 <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-white/75">{title}</h3>
@@ -362,7 +399,9 @@ export default function GameStoreHomepage() {
             <div className="mb-5 flex items-end justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-black sm:text-3xl">{section.title}</h2>
-                <p className="mt-1 text-sm text-white/55">Fast-scanning cards with clear prices and bold discounts.</p>
+                <p className="mt-1 hidden text-sm text-white/55 sm:block">
+                  All PC games at affordable prices.
+                </p>
               </div>
               <button
                 onClick={section.action || (() => {})}
@@ -376,8 +415,14 @@ export default function GameStoreHomepage() {
               {section.items.map((game, index) => (
                 <article
                   key={`${section.title}-${game.title}-${index}`}
-                  onMouseEnter={() => setHoveredGame({ image: game.image, title: game.title })}
-                  onMouseLeave={() => setHoveredGame(null)}
+                  onMouseEnter={canHover ? (e) => {
+                    setHoveredGame({ image: game.image, title: game.title })
+                    setHoverPosition({ x: e.clientX, y: e.clientY })
+                  } : undefined}
+                  onMouseMove={canHover ? (e) => {
+                    setHoverPosition({ x: e.clientX, y: e.clientY })
+                  } : undefined}
+                  onMouseLeave={canHover ? () => setHoveredGame(null) : undefined}
                   className="group overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/5 transition hover:-translate-y-1 hover:border-orange-400/30 hover:bg-white/[0.07]"
                 >
                   <div className="relative">
@@ -389,17 +434,17 @@ export default function GameStoreHomepage() {
                   <div className="p-5">
                     <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/45">
                       <span>{game.tag}</span>
-                      <span>Steam Account</span>
+                      <span className="hidden sm:inline">Steam Account</span>
                     </div>
                     <h3 className="text-lg font-bold leading-snug">{game.title}</h3>
                     <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                       <div>
                         <div className="text-2xl font-black">{game.price}</div>
-                        <div className="text-sm text-white/35 line-through">{game.oldPrice}</div>
+                        <div className="hidden text-sm text-white/35 line-through sm:block">{game.oldPrice}</div>
                       </div>
                       <button
                         onClick={() => setIsBuyPopupOpen(true)}
-                            className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03] sm:w-auto"
+                        className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03] sm:w-auto"
                       >
                         Buy
                       </button>
@@ -413,20 +458,22 @@ export default function GameStoreHomepage() {
       </main>
 
       {hoveredGame && (
-        <div className="pointer-events-none fixed right-6 top-24 z-[110] hidden w-[320px] xl:block">
-          <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-neutral-900 shadow-2xl shadow-black/50">
-            <img src={hoveredGame.image} alt={hoveredGame.title} className="h-[420px] w-full object-cover" />
-            <div className="border-t border-white/10 bg-black/40 px-4 py-3">
-              <p className="text-sm font-semibold text-white">{hoveredGame.title}</p>
-              <p className="mt-1 text-xs text-white/55">Full image preview</p>
+        <div
+          className="pointer-events-none fixed z-[110] hidden xl:block"
+          style={{ top: hoverPosition.y + 20, left: hoverPosition.x + 20 }}
+        >
+          <div className="overflow-hidden rounded-[1.25rem] border border-white/10 bg-neutral-900 shadow-2xl shadow-black/50 w-[260px]">
+            <img src={hoveredGame.image} alt={hoveredGame.title} className="h-[320px] w-full object-cover" />
+            <div className="border-t border-white/10 bg-black/40 px-3 py-2">
+              <p className="text-xs font-semibold text-white">{hoveredGame.title}</p>
             </div>
           </div>
         </div>
       )}
 
       {isSearchOpen && searchQuery.trim().length > 0 && (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
-          <div className="relative max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/60">
+        <div className="fixed inset-0 z-[95] flex items-start justify-center bg-black/70 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6">
+          <div className="relative max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/60 sm:rounded-[2rem]">
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">Search Results</p>
@@ -454,8 +501,14 @@ export default function GameStoreHomepage() {
                   {filteredGames.map((game, index) => (
                     <article
                       key={`${game.title}-search-${index}`}
-                      onMouseEnter={() => setHoveredGame({ image: game.image, title: game.title })}
-                      onMouseLeave={() => setHoveredGame(null)}
+                      onMouseEnter={canHover ? (e) => {
+                    setHoveredGame({ image: game.image, title: game.title })
+                    setHoverPosition({ x: e.clientX, y: e.clientY })
+                  } : undefined}
+                  onMouseMove={canHover ? (e) => {
+                    setHoverPosition({ x: e.clientX, y: e.clientY })
+                  } : undefined}
+                  onMouseLeave={canHover ? () => setHoveredGame(null) : undefined}
                       className="group overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/5 transition hover:-translate-y-1 hover:border-orange-400/30 hover:bg-white/[0.07]"
                     >
                       <div className="relative">
@@ -467,13 +520,13 @@ export default function GameStoreHomepage() {
                       <div className="p-5">
                         <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/45">
                           <span>{game.tag}</span>
-                          <span>Steam Account</span>
+                          <span className="hidden sm:inline">Steam Account</span>
                         </div>
                         <h3 className="text-lg font-bold leading-snug">{game.title}</h3>
                         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                           <div>
                             <div className="text-2xl font-black">{game.price}</div>
-                            <div className="text-sm text-white/35 line-through">{game.oldPrice}</div>
+                            <div className="hidden text-sm text-white/35 line-through sm:block">{game.oldPrice}</div>
                           </div>
                           <button
                             onClick={() => setIsBuyPopupOpen(true)}
@@ -501,7 +554,7 @@ export default function GameStoreHomepage() {
 
       {isPcGamesOpen && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-sm">
-          <div className="relative max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/60">
+          <div className="relative max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/60 sm:rounded-[2rem]">
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">Browse Collection</p>
@@ -536,8 +589,14 @@ export default function GameStoreHomepage() {
                 {pcGames.map((game, index) => (
                   <article
                     key={`${game.title}-${index}`}
-                    onMouseEnter={() => setHoveredGame({ image: game.image, title: game.title })}
-                    onMouseLeave={() => setHoveredGame(null)}
+                    onMouseEnter={canHover ? (e) => {
+                    setHoveredGame({ image: game.image, title: game.title })
+                    setHoverPosition({ x: e.clientX, y: e.clientY })
+                  } : undefined}
+                  onMouseMove={canHover ? (e) => {
+                    setHoverPosition({ x: e.clientX, y: e.clientY })
+                  } : undefined}
+                  onMouseLeave={canHover ? () => setHoveredGame(null) : undefined}
                     className="group overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/5 transition hover:-translate-y-1 hover:border-orange-400/30 hover:bg-white/[0.07]"
                   >
                     <div className="relative">
@@ -549,17 +608,17 @@ export default function GameStoreHomepage() {
                     <div className="p-5">
                       <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/45">
                         <span>{game.tag}</span>
-                        <span>Steam Account</span>
+                        <span className="hidden sm:inline">Steam Account</span>
                       </div>
                       <h3 className="text-lg font-bold leading-snug">{game.title}</h3>
                       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                           <div className="text-2xl font-black">{game.price}</div>
-                          <div className="text-sm text-white/35 line-through">{game.oldPrice}</div>
+                          <div className="hidden text-sm text-white/35 line-through sm:block">{game.oldPrice}</div>
                         </div>
                         <button
                           onClick={() => setIsBuyPopupOpen(true)}
-                            className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03] sm:w-auto"
+                          className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-bold text-black transition hover:scale-[1.03] sm:w-auto"
                         >
                           Buy
                         </button>
@@ -627,7 +686,9 @@ export default function GameStoreHomepage() {
               </div>
             </div>
             <div className="mt-5 flex items-center gap-3">
-              <a href={INSTAGRAM_URL} onClick={goToInstagram} className="inline-block rounded-xl bg-orange-500 px-5 py-2 text-sm font-semibold text-black">Chat</a>
+              <a href={INSTAGRAM_URL} onClick={goToInstagram} className="inline-block rounded-xl bg-orange-500 px-5 py-2 text-sm font-semibold text-black">
+                Chat
+              </a>
             </div>
             <button
               onClick={() => setIsFaqOpen(false)}
@@ -651,11 +712,11 @@ export default function GameStoreHomepage() {
               <p>➤ Guaranteed assistance and solutions for any issues.</p>
               <p>➤ If you have any questions about the product, you can message us in chats.</p>
             </div>
-
             <div className="mt-5 flex items-center gap-3">
-              <a href={INSTAGRAM_URL} onClick={goToInstagram} className="inline-block rounded-xl bg-orange-500 px-5 py-2 text-sm font-semibold text-black">Chat</a>
+              <a href={INSTAGRAM_URL} onClick={goToInstagram} className="inline-block rounded-xl bg-orange-500 px-5 py-2 text-sm font-semibold text-black">
+                Chat
+              </a>
             </div>
-
             <button
               onClick={() => setIsRulesPopupOpen(false)}
               className="mt-6 rounded-xl border border-white/10 px-5 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
@@ -673,9 +734,9 @@ export default function GameStoreHomepage() {
             <p className="text-sm leading-6 text-white/70">
               Please contact us on Instagram for help, order support, or any questions.
             </p>
-
-            <a href={INSTAGRAM_URL} onClick={goToInstagram} className="mt-5 inline-block rounded-xl bg-orange-500 px-5 py-2 text-sm font-semibold text-black">Open Instagram</a>
-
+            <a href={INSTAGRAM_URL} onClick={goToInstagram} className="mt-5 inline-block rounded-xl bg-orange-500 px-5 py-2 text-sm font-semibold text-black">
+              Open Instagram
+            </a>
             <button
               onClick={() => setIsInstagramPopupOpen(false)}
               className="mt-4 block w-full rounded-xl border border-white/10 py-2 text-sm text-white/80 hover:bg-white/10"
@@ -695,7 +756,6 @@ export default function GameStoreHomepage() {
               <br />
               It will be available very soon.
             </p>
-
             <button
               onClick={() => setIsSignInOpen(false)}
               className="mt-6 block w-full rounded-xl border border-white/10 py-2 text-sm text-white/80 hover:bg-white/10"
@@ -715,9 +775,9 @@ export default function GameStoreHomepage() {
               <br />
               Please contact us on Instagram to complete your purchase.
             </p>
-
-            <a href={INSTAGRAM_URL} onClick={goToInstagram} className="mt-5 inline-block rounded-xl bg-orange-500 px-5 py-2 text-sm font-semibold text-black">Contact on Instagram</a>
-
+            <a href={INSTAGRAM_URL} onClick={goToInstagram} className="mt-5 inline-block rounded-xl bg-orange-500 px-5 py-2 text-sm font-semibold text-black">
+              Contact on Instagram
+            </a>
             <button
               onClick={() => setIsBuyPopupOpen(false)}
               className="mt-4 block w-full rounded-xl border border-white/10 py-2 text-sm text-white/80 hover:bg-white/10"
@@ -732,9 +792,7 @@ export default function GameStoreHomepage() {
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-2 lg:grid-cols-4 lg:px-8">
           <div>
             <p className="text-lg font-black">GameDeals</p>
-            <p className="mt-3 max-w-xs text-sm leading-6 text-white/55">
-              © {currentYear} GameDeals. All rights reserved.
-            </p>
+            <p className="mt-3 max-w-xs text-sm leading-6 text-white/55">© {currentYear} GameDeals. All rights reserved.</p>
           </div>
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-white/75">Social Media</p>
@@ -751,10 +809,7 @@ export default function GameStoreHomepage() {
               <a href={INSTAGRAM_URL} onClick={goToInstagram} className="block text-left transition hover:text-white">
                 Contact
               </a>
-              <button
-                onClick={() => setIsFaqOpen(true)}
-                className="block text-left transition hover:text-white"
-              >
+              <button onClick={() => setIsFaqOpen(true)} className="block text-left transition hover:text-white">
                 FAQs
               </button>
             </div>
