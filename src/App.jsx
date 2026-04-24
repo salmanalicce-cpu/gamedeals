@@ -69,6 +69,35 @@ async function fetchSheetData(sheetName, sheetId = SHEET_ID) {
   }
 }
 
+function SearchDropdown({ results, onSelect }) {
+  if (!results.length) {
+    return (
+      <div className="absolute left-0 right-0 top-full z-50 mt-2 rounded-2xl border border-white/10 bg-neutral-900 p-4 text-sm text-white/60 shadow-xl">
+        No games found.
+      </div>
+    )
+  }
+
+  return (
+    <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 overflow-y-auto rounded-2xl border border-white/10 bg-neutral-900 shadow-xl">
+      {results.slice(0, 8).map((game, index) => (
+        <button
+          key={`${game.title}-${index}`}
+          onClick={onSelect}
+          className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/5"
+        >
+          <img src={game.image} alt={game.title} className="h-12 w-16 flex-none rounded object-cover" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-white">{game.title}</p>
+            <p className="text-xs text-white/50">Steam Account</p>
+          </div>
+          <p className="flex-none text-sm font-bold text-white">{game.price}</p>
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function GameStoreHomepage() {
   const pcSectionRef = useRef(null)
   const currentYear = new Date().getFullYear()
@@ -152,21 +181,28 @@ export default function GameStoreHomepage() {
 
   const filteredGames = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    if (!query) return searchableGames
+    if (!query) return []
 
     return searchableGames.filter((game) =>
       [game.title, game.tag, 'Steam Account'].join(' ').toLowerCase().includes(query)
     )
   }, [searchQuery, searchableGames])
 
-  const handleSearch = () => {
-    setIsSearchOpen(true)
+  const updateSearch = (value) => {
+    setSearchQuery(value)
+    setIsSearchOpen(value.trim().length > 0)
   }
 
   const handleSearchKeyDown = (event) => {
-    if (event.key === 'Enter') {
-      handleSearch()
+    if (event.key === 'Escape') {
+      setIsSearchOpen(false)
+      setSearchQuery('')
     }
+  }
+
+  const handleSearchSelect = () => {
+    setIsBuyPopupOpen(true)
+    setIsSearchOpen(false)
   }
 
   const scrollToPcSection = () => {
@@ -187,6 +223,55 @@ export default function GameStoreHomepage() {
     window.setTimeout(() => setHighlightPC(false), 1500)
   }
 
+  const renderGameCard = (game, key) => (
+    <article
+      key={key}
+      onMouseEnter={
+        canHover
+          ? (event) => {
+              setHoveredGame({ image: game.image, title: game.title })
+              setHoverPosition({ x: event.clientX, y: event.clientY })
+            }
+          : undefined
+      }
+      onMouseMove={
+        canHover
+          ? (event) => {
+              setHoverPosition({ x: event.clientX, y: event.clientY })
+            }
+          : undefined
+      }
+      onMouseLeave={canHover ? () => setHoveredGame(null) : undefined}
+      className="group overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/5 transition hover:-translate-y-1 hover:border-orange-400/30 hover:bg-white/[0.07] sm:rounded-[1.75rem]"
+    >
+      <div className="relative">
+        <img src={game.image} alt={game.title} className="h-36 w-full object-cover transition duration-300 group-hover:scale-105 sm:h-56" />
+        <div className="absolute right-2 top-2 rounded-full bg-orange-500 px-2 py-1 text-[10px] font-black text-black shadow-lg shadow-orange-500/25 sm:right-4 sm:top-4 sm:px-3 sm:text-xs">
+          {game.discount}
+        </div>
+      </div>
+      <div className="p-3 sm:p-5">
+        <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/45">
+          <span>{game.tag}</span>
+          <span className="hidden sm:inline">Steam Account</span>
+        </div>
+        <h3 className="text-sm font-bold leading-snug sm:text-lg">{game.title}</h3>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="text-lg font-black sm:text-2xl">{game.price}</div>
+            <div className="hidden text-sm text-white/35 line-through sm:block">{game.oldPrice}</div>
+          </div>
+          <button
+            onClick={() => setIsBuyPopupOpen(true)}
+            className="w-full rounded-xl bg-white px-3 py-2 text-xs font-bold text-black transition hover:scale-[1.03] sm:w-auto sm:rounded-2xl sm:px-4 sm:text-sm"
+          >
+            Buy
+          </button>
+        </div>
+      </div>
+    </article>
+  )
+
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
       <header className="sticky top-0 z-50 border-b border-white/10 bg-neutral-950/85 backdrop-blur">
@@ -201,28 +286,25 @@ export default function GameStoreHomepage() {
             </div>
           </div>
 
-          <div className="hidden flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 md:flex">
+          <div className="relative hidden flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 md:flex">
             <svg viewBox="0 0 24 24" className="h-5 w-5 text-white/50" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="7" />
               <path d="M20 20l-3.5-3.5" />
             </svg>
             <input
               value={searchQuery}
-              onChange={(event) => {
-                const value = event.target.value
-                setSearchQuery(value)
-                setIsSearchOpen(value.trim().length > 0)
-              }}
+              onChange={(event) => updateSearch(event.target.value)}
               onKeyDown={handleSearchKeyDown}
               placeholder="Search games, gift cards, DLC..."
-              className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40"
+              className="w-full bg-transparent text-base text-white outline-none placeholder:text-white/40 md:text-sm"
             />
             <button
-              onClick={handleSearch}
+              onClick={() => setIsSearchOpen(searchQuery.trim().length > 0)}
               className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-black transition hover:scale-[1.02]"
             >
               Search
             </button>
+            {isSearchOpen && searchQuery.trim().length > 0 ? <SearchDropdown results={filteredGames} onSelect={handleSearchSelect} /> : null}
           </div>
 
           <nav className="hidden items-center gap-6 lg:flex">
@@ -272,25 +354,24 @@ export default function GameStoreHomepage() {
         </div>
 
         <div className="mx-auto max-w-7xl px-4 pb-4 md:hidden sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-            <svg viewBox="0 0 24 24" className="h-5 w-5 text-white/50" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.5-3.5" />
-            </svg>
-            <input
-              value={searchQuery}
-              onChange={(event) => {
-                const value = event.target.value
-                setSearchQuery(value)
-                setIsSearchOpen(value.trim().length > 0)
-              }}
-              onKeyDown={handleSearchKeyDown}
-              placeholder="Search games..."
-              className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/40"
-            />
-            <button onClick={handleSearch} className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-black">
-              Search
-            </button>
+          <div className="relative">
+            <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <svg viewBox="0 0 24 24" className="h-5 w-5 text-white/50" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="7" />
+                <path d="M20 20l-3.5-3.5" />
+              </svg>
+              <input
+                value={searchQuery}
+                onChange={(event) => updateSearch(event.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Search games..."
+                className="w-full bg-transparent text-base text-white outline-none placeholder:text-white/40"
+              />
+              <button onClick={() => setIsSearchOpen(searchQuery.trim().length > 0)} className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-black">
+                Search
+              </button>
+            </div>
+            {isSearchOpen && searchQuery.trim().length > 0 ? <SearchDropdown results={filteredGames} onSelect={handleSearchSelect} /> : null}
           </div>
         </div>
       </header>
@@ -408,60 +489,13 @@ export default function GameStoreHomepage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
-              {section.items.map((game, index) => (
-                <article
-                  key={`${section.title}-${game.title}-${index}`}
-                  onMouseEnter={
-                    canHover
-                      ? (event) => {
-                          setHoveredGame({ image: game.image, title: game.title })
-                          setHoverPosition({ x: event.clientX, y: event.clientY })
-                        }
-                      : undefined
-                  }
-                  onMouseMove={
-                    canHover
-                      ? (event) => {
-                          setHoverPosition({ x: event.clientX, y: event.clientY })
-                        }
-                      : undefined
-                  }
-                  onMouseLeave={canHover ? () => setHoveredGame(null) : undefined}
-                  className="group overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/5 transition hover:-translate-y-1 hover:border-orange-400/30 hover:bg-white/[0.07] sm:rounded-[1.75rem]"
-                >
-                  <div className="relative">
-                    <img src={game.image} alt={game.title} className="h-36 w-full object-cover transition duration-300 group-hover:scale-105 sm:h-56" />
-                    <div className="absolute right-2 top-2 rounded-full bg-orange-500 px-2 py-1 text-[10px] font-black text-black shadow-lg shadow-orange-500/25 sm:right-4 sm:top-4 sm:px-3 sm:text-xs">
-                      {game.discount}
-                    </div>
-                  </div>
-                  <div className="p-3 sm:p-5">
-                    <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/45">
-                      <span>{game.tag}</span>
-                      <span className="hidden sm:inline">Steam Account</span>
-                    </div>
-                    <h3 className="text-sm font-bold leading-snug sm:text-lg">{game.title}</h3>
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                      <div>
-                        <div className="text-lg font-black sm:text-2xl">{game.price}</div>
-                        <div className="hidden text-sm text-white/35 line-through sm:block">{game.oldPrice}</div>
-                      </div>
-                      <button
-                        onClick={() => setIsBuyPopupOpen(true)}
-                        className="w-full rounded-xl bg-white px-3 py-2 text-xs font-bold text-black transition hover:scale-[1.03] sm:w-auto sm:rounded-2xl sm:px-4 sm:text-sm"
-                      >
-                        Buy
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
+              {section.items.map((game, index) => renderGameCard(game, `${section.title}-${game.title}-${index}`))}
             </div>
           </section>
         ))}
       </main>
 
-      {hoveredGame && (
+      {hoveredGame ? (
         <div className="pointer-events-none fixed z-[110] hidden xl:block" style={{ top: hoverPosition.y + 20, left: hoverPosition.x + 20 }}>
           <div className="w-[260px] overflow-hidden rounded-[1.25rem] border border-white/10 bg-neutral-900 shadow-2xl shadow-black/50">
             <img src={hoveredGame.image} alt={hoveredGame.title} className="h-[320px] w-full object-cover" />
@@ -470,96 +504,9 @@ export default function GameStoreHomepage() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {isSearchOpen && searchQuery.trim().length > 0 && (
-        <div className="fixed inset-0 z-[95] flex items-start justify-center bg-black/70 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6">
-          <div className="relative max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/60 sm:rounded-[2rem]">
-            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-300">Search Results</p>
-                <h2 className="mt-1 text-2xl font-black sm:text-3xl">
-                  {searchQuery.trim() ? `Results for “${searchQuery}”` : 'All Games'}
-                </h2>
-                <p className="mt-1 text-sm text-white/55">
-                  {filteredGames.length} matching game{filteredGames.length === 1 ? '' : 's'} found.
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setIsSearchOpen(false)
-                  setSearchQuery('')
-                }}
-                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="max-h-[calc(90vh-96px)] overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
-              {filteredGames.length > 0 ? (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
-                  {filteredGames.map((game, index) => (
-                    <article
-                      key={`${game.title}-search-${index}`}
-                      onMouseEnter={
-                        canHover
-                          ? (event) => {
-                              setHoveredGame({ image: game.image, title: game.title })
-                              setHoverPosition({ x: event.clientX, y: event.clientY })
-                            }
-                          : undefined
-                      }
-                      onMouseMove={
-                        canHover
-                          ? (event) => {
-                              setHoverPosition({ x: event.clientX, y: event.clientY })
-                            }
-                          : undefined
-                      }
-                      onMouseLeave={canHover ? () => setHoveredGame(null) : undefined}
-                      className="group overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/5 transition hover:-translate-y-1 hover:border-orange-400/30 hover:bg-white/[0.07] sm:rounded-[1.75rem]"
-                    >
-                      <div className="relative">
-                        <img src={game.image} alt={game.title} className="h-36 w-full object-cover transition duration-300 group-hover:scale-105 sm:h-56" />
-                        <div className="absolute right-2 top-2 rounded-full bg-orange-500 px-2 py-1 text-[10px] font-black text-black shadow-lg shadow-orange-500/25 sm:right-4 sm:top-4 sm:px-3 sm:text-xs">
-                          {game.discount}
-                        </div>
-                      </div>
-                      <div className="p-3 sm:p-5">
-                        <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/45">
-                          <span>{game.tag}</span>
-                          <span className="hidden sm:inline">Steam Account</span>
-                        </div>
-                        <h3 className="text-sm font-bold leading-snug sm:text-lg">{game.title}</h3>
-                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                          <div>
-                            <div className="text-lg font-black sm:text-2xl">{game.price}</div>
-                            <div className="hidden text-sm text-white/35 line-through sm:block">{game.oldPrice}</div>
-                          </div>
-                          <button
-                            onClick={() => setIsBuyPopupOpen(true)}
-                            className="w-full rounded-xl bg-white px-3 py-2 text-xs font-bold text-black transition hover:scale-[1.03] sm:w-auto sm:rounded-2xl sm:px-4 sm:text-sm"
-                          >
-                            Buy
-                          </button>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-[1.75rem] border border-dashed border-white/10 bg-white/5 px-6 py-16 text-center">
-                  <h3 className="text-2xl font-black">No games found</h3>
-                  <p className="mt-3 text-sm text-white/60">Try another title or a broader keyword like action, racing, or deal.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isPcGamesOpen && (
+      {isPcGamesOpen ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-sm">
           <div className="relative max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/60 sm:rounded-[2rem]">
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
@@ -593,61 +540,14 @@ export default function GameStoreHomepage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
-                {pcGames.map((game, index) => (
-                  <article
-                    key={`${game.title}-${index}`}
-                    onMouseEnter={
-                      canHover
-                        ? (event) => {
-                            setHoveredGame({ image: game.image, title: game.title })
-                            setHoverPosition({ x: event.clientX, y: event.clientY })
-                          }
-                        : undefined
-                    }
-                    onMouseMove={
-                      canHover
-                        ? (event) => {
-                            setHoverPosition({ x: event.clientX, y: event.clientY })
-                          }
-                        : undefined
-                    }
-                    onMouseLeave={canHover ? () => setHoveredGame(null) : undefined}
-                    className="group overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/5 transition hover:-translate-y-1 hover:border-orange-400/30 hover:bg-white/[0.07] sm:rounded-[1.75rem]"
-                  >
-                    <div className="relative">
-                      <img src={game.image} alt={game.title} className="h-36 w-full object-cover transition duration-300 group-hover:scale-105 sm:h-56" />
-                      <div className="absolute right-2 top-2 rounded-full bg-orange-500 px-2 py-1 text-[10px] font-black text-black shadow-lg shadow-orange-500/25 sm:right-4 sm:top-4 sm:px-3 sm:text-xs">
-                        {game.discount}
-                      </div>
-                    </div>
-                    <div className="p-3 sm:p-5">
-                      <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/45">
-                        <span>{game.tag}</span>
-                        <span className="hidden sm:inline">Steam Account</span>
-                      </div>
-                      <h3 className="text-sm font-bold leading-snug sm:text-lg">{game.title}</h3>
-                      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                        <div>
-                          <div className="text-lg font-black sm:text-2xl">{game.price}</div>
-                          <div className="hidden text-sm text-white/35 line-through sm:block">{game.oldPrice}</div>
-                        </div>
-                        <button
-                          onClick={() => setIsBuyPopupOpen(true)}
-                          className="w-full rounded-xl bg-white px-3 py-2 text-xs font-bold text-black transition hover:scale-[1.03] sm:w-auto sm:rounded-2xl sm:px-4 sm:text-sm"
-                        >
-                          Buy
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
+                {pcGames.map((game, index) => renderGameCard(game, `${game.title}-${index}`))}
               </div>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {isConsolePopupOpen && (
+      {isConsolePopupOpen ? (
         <div className="fixed inset-0 z-[103] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-900 p-6 text-center shadow-2xl">
             <h2 className="mb-3 text-2xl font-bold">{selectedPlatform} Coming Soon</h2>
@@ -664,9 +564,9 @@ export default function GameStoreHomepage() {
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {isFaqOpen && (
+      {isFaqOpen ? (
         <div className="fixed inset-0 z-[104] flex items-center justify-center bg-black/70 px-3 py-4 backdrop-blur-sm sm:px-4">
           <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-neutral-900 shadow-2xl">
             <div className="border-b border-white/10 px-4 py-4 sm:px-6">
@@ -721,9 +621,9 @@ export default function GameStoreHomepage() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {isRulesPopupOpen && (
+      {isRulesPopupOpen ? (
         <div className="fixed inset-0 z-[102] flex items-center justify-center bg-black/70 px-3 py-4 backdrop-blur-sm sm:px-4">
           <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-neutral-900 shadow-2xl">
             <div className="border-b border-white/10 px-4 py-4 sm:px-6">
@@ -756,9 +656,9 @@ export default function GameStoreHomepage() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {isInstagramPopupOpen && (
+      {isInstagramPopupOpen ? (
         <div className="fixed inset-0 z-[101] flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-900 p-6 text-center shadow-2xl">
             <h2 className="mb-3 text-2xl font-bold">Instagram Support</h2>
@@ -774,9 +674,9 @@ export default function GameStoreHomepage() {
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {isSignInOpen && (
+      {isSignInOpen ? (
         <div className="fixed inset-0 z-[105] flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-900 p-6 text-center shadow-2xl">
             <h2 className="mb-3 text-2xl font-bold">🚧 Feature Coming Soon</h2>
@@ -793,9 +693,9 @@ export default function GameStoreHomepage() {
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {isBuyPopupOpen && (
+      {isBuyPopupOpen ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-900 p-6 text-center shadow-2xl">
             <h2 className="mb-3 text-2xl font-bold">🚧 Payment Coming Soon</h2>
@@ -815,7 +715,7 @@ export default function GameStoreHomepage() {
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
       <footer className="border-t border-white/10 bg-black/30">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-2 lg:grid-cols-4 lg:px-8">
