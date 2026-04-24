@@ -493,6 +493,28 @@ export default function GameStoreHomepage() {
             </div>
           </section>
         ))}
+        <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <div className="mb-5">
+            <h2 className="text-2xl font-black sm:text-3xl">FAQs</h2>
+            <p className="mt-1 hidden text-sm text-white/55 sm:block">Quick answers before you buy.</p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              ['What will I receive?', 'You’ll receive a Steam account with the product ready to download.'],
+              ['Can I change account details?', 'No, email and password cannot be changed on shared accounts.'],
+              ['How fast is delivery?', 'Delivery is usually instant, with a maximum wait time of around 1 hour.'],
+              ['Do you provide warranty?', 'Yes, we provide support and warranty for our products.'],
+              ['Can I update the game?', 'Yes, you can update the game to the latest version anytime.'],
+              ['Need help?', 'Message us on Instagram and we’ll help you quickly.'],
+            ].map(([question, answer]) => (
+              <div key={question} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <h3 className="text-sm font-bold text-white">{question}</h3>
+                <p className="mt-2 text-sm leading-6 text-white/60">{answer}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
 
       {hoveredGame ? (
