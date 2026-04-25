@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+// use public folder for logo instead of import
 
 const SHEET_ID = '1lXBrmYgflnxQZN2L9obEqNAlqE3tN8YLplWyKmRcs7k'
 const BEST_DEALS_SHEET_ID = '1nLf3RYEj3gC7B85jWStNXdb-I6RlsNG06Ju6eY_XxBs'
@@ -277,8 +278,8 @@ export default function GameStoreHomepage() {
       <header className="sticky top-0 z-50 border-b border-white/10 bg-neutral-950/85 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-500 font-black text-black shadow-lg shadow-orange-500/30">
-              G
+            <div className="flex h-10 w-10 items-center justify-center">
+              <img src="/assets/logo.png" alt="GameDeals Logo" className="h-full w-full object-contain" />
             </div>
             <div>
               <p className="text-lg font-bold tracking-wide">GameDeals</p>
