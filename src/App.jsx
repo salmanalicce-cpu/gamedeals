@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-// use public folder for logo instead of import
 
 const SHEET_ID = '1lXBrmYgflnxQZN2L9obEqNAlqE3tN8YLplWyKmRcs7k'
 const BEST_DEALS_SHEET_ID = '1nLf3RYEj3gC7B85jWStNXdb-I6RlsNG06Ju6eY_XxBs'
 const DEFAULT_DISCOUNT = '-90%'
 const DEFAULT_TAG = 'Best Deal'
 const INSTAGRAM_URL = 'https://www.instagram.com/gamedeals.pk?igsh=MTBuNjZmMnVseG1lbQ%3D%3D&utm_source=qr'
+const LOGO_URL = 'https://raw.githubusercontent.com/salmanalicce-cpu/gamedeals/main/assets/logo.png'
 
 function goToInstagram(event) {
   if (event) event.preventDefault()
@@ -279,7 +279,7 @@ export default function GameStoreHomepage() {
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center">
-              <img src="/assets/logo.png" alt="GameDeals Logo" className="h-full w-full object-contain" />
+              <img src={LOGO_URL} alt="GameDeals Logo" className="h-full w-full object-contain" />
             </div>
             <div>
               <p className="text-lg font-bold tracking-wide">GameDeals</p>
